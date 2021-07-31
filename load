@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from os.path import realpath, dirname, join
+from logging import basicConfig, info, INFO
+from argparse import ArgumentParser
+from subprocess import check_call
+from requests import get, post
+
+
+WORKDIR = realpath(dirname(__file__))
+basicConfig(level=INFO, format='[%(levelname)s] %(message)s')
+
+
+def parse():
+    parser = ArgumentParser()
+    parser.add_argument("--host", default="http://mystuff")
+    parser.add_argument("--users", default="50")
+    parser.add_argument("--spawn-rate", default="10")
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse()
+
+    cmd = [
+        "locust",
+        "-f",
+        f"{WORKDIR}/loadtest/locustfile.py",
+        "--host",
+        args.host,
+        "--headless",
+        "-u",
+        args.users,
+        "-r",
+        args.spawn_rate
+    ]
+
+    check_call(cmd)
+
+
+if __name__ == "__main__":
+    main()

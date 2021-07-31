@@ -1,0 +1,17 @@
+filebeat.modules:
+  - module: apache2
+  - module: elasticsearch
+  - module: logstash
+  - module: postgresql
+  - module: traefik
+
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+
+processors:
+  - add_docker_metadata: ~
+
+output.logstash:
+  hosts: ["logstash:5044"]

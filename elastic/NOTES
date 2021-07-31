@@ -1,0 +1,4 @@
+--------------
+endpoints:
+kibana: http://127.0.0.1:5601
+mystuff: http://127.0.0.1:8000

@@ -1,0 +1,32 @@
+#!/bin/bash -e
+
+usage() {
+    echo "$0 <STACK>"
+}
+
+if [ -z "$1" ]
+then
+    usage
+    exit 1
+fi
+
+STACK="$1"
+CURRDIR="$(realpath $0 | xargs dirname)"
+PRE_SCRIPT="$CURRDIR/$STACK/pre"
+export CONFIG_VERSION="$((1 + $RANDOM % 100))"
+
+if [ -f "$PRE_SCRIPT" ]
+then
+    "$PRE_SCRIPT"
+fi
+
+export EXTERNAL_IP="127.0.0.1"
+if curl -s --max-time 1 "http://169.254.169.254/latest/meta-data/public-ipv4" &>/dev/null
+then
+    EXTERNAL_IP="$(curl -s --max-time 1 "http://169.254.169.254/latest/meta-data/public-ipv4")"
+fi
+
+docker stack deploy "$STACK" -c "$CURRDIR/$STACK/$STACK.yml"
+$CURRDIR/docker-stack-wait.sh -t 1000 -f label=deploy.wait=true "$STACK"
+
+cat "$STACK/NOTES"

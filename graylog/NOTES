@@ -1,0 +1,4 @@
+--------------
+endpoints:
+graylog: http://127.0.0.1:9000
+mystuff: http://127.0.0.1:8001

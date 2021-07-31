@@ -1,0 +1,8 @@
+#!/bin/bash -e
+
+if docker plugin ls --format="{{.Name}}" | grep loki:latest &>/dev/null
+then
+  echo "Loki log driver already installed!!!"
+else
+  docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+fi

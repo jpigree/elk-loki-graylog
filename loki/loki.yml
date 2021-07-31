@@ -1,0 +1,278 @@
+version: "3.7"
+
+configs:
+  loki_config:
+    name: loki_config-${CONFIG_VERSION:-0}
+    file: config/loki.yml
+  alertmanager_config:
+    name: alertmanager-${CONFIG_VERSION:-0}
+    file: config/alertmanager.yml
+  promtail_config:
+    name: promtail-${CONFIG_VERSION:-0}
+    file: config/promtail.yml
+  alert_rules_config:
+    name: alert_rules-${CONFIG_VERSION:-0}
+    file: config/rules.yml
+  datasources_config:
+    name: grafana_datasources-${CONFIG_VERSION:-0}
+    file: config/datasources.yml
+  dashboards_config:
+    name: grafana_dashboards-${CONFIG_VERSION:-0}
+    file: config/dashboards.yml
+  swarm-stack_dashboard:
+    name: grafana_swarm-stack_dashboard-${CONFIG_VERSION:-0}
+    file: config/swarm-stack.json
+  prometheus_template:
+    name: prometheus_template-${CONFIG_VERSION:-0}
+    file: config/prometheus.orig.yml
+
+x-default-log-driver: &log-driver
+  driver: loki
+
+x-default-log-options: &log-options
+    loki-url: http://127.0.0.1:3100/loki/api/v1/push
+
+services:
+  loki:
+    # Needed to have the stop fix
+    image: grafana/loki:latest
+    networks:
+      - loki
+    ports:
+      - "3100:3100"
+    configs:
+      - source: loki_config
+        target: /etc/loki/config.yml
+      - source: alert_rules_config
+        target: /etc/loki/rules/main/rules.yml
+    command: -config.file=/etc/loki/config.yml
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  grafana:
+    image: grafana/grafana:7.4.0
+    networks:
+      - loki
+    configs:
+      - source: datasources_config
+        target: /etc/grafana/provisioning/datasources/datasources.yml
+      - source: dashboards_config
+        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+      - source: swarm-stack_dashboard
+        target: /var/lib/grafana/dashboards/swarm-stack.json
+    volumes:
+      - grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  alertmanager:
+    image: prom/alertmanager
+    networks:
+      - loki
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - "--web.external-url=http://127.0.0.1:9093"
+    configs:
+      - source: alertmanager_config
+        target: /etc/alertmanager/config.yml
+    ports:
+      - 9093:9093
+
+  promtail:
+    image: grafana/promtail:2.2.1
+    networks:
+      - loki
+    configs:
+      - source: promtail_config
+        target: /etc/promtail/config.yml
+    ports:
+      - 9080:9080
+    volumes:
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/config.yml
+
+  inbucket:
+    image: inbucket/inbucket:stable
+    networks:
+      - loki
+    environment:
+      - inbucket_mailboxnaming=full
+    ports:
+      - 9000:9000
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.39.1
+    command: -logtostderr -docker_only
+    networks:
+      - loki
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    logging:
+      <<: *log-driver
+      options: *log-options
+    deploy:
+      mode: global
+      labels:
+        - prometheus_scrape_target=cadvisor
+      restart_policy:
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  node-exporter:
+    image: prom/node-exporter:v1.0.1
+    networks:
+      - loki
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    user: root
+    command:
+      - '--path.sysfs=/host/sys'
+      - '--path.procfs=/host/proc'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--no-collector.arp'
+      - '--no-collector.bcache'
+      - '--no-collector.bonding'
+      - '--no-collector.buddyinfo'
+      - '--no-collector.drbd'
+      - '--no-collector.edac'
+      - '--no-collector.entropy'
+      - '--no-collector.hwmon'
+      - '--no-collector.infiniband'
+      - '--no-collector.interrupts'
+      - '--no-collector.ipvs'
+      - '--no-collector.ksmd'
+      - '--no-collector.logind'
+      - '--no-collector.mdadm'
+      - '--no-collector.meminfo_numa'
+      - '--no-collector.mountstats'
+      - '--no-collector.nfs'
+      - '--no-collector.nfsd'
+      - '--no-collector.qdisc'
+      - '--no-collector.runit'
+      - '--no-collector.supervisord'
+      - '--no-collector.systemd'
+      - '--no-collector.tcpstat'
+      - '--no-collector.timex'
+      - '--no-collector.wifi'
+      - '--no-collector.xfs'
+      - '--no-collector.zfs'
+    healthcheck:
+      test: [ 'CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:9100']
+      interval: 30s
+      retries: 3
+    logging:
+      <<: *log-driver
+      options: *log-options
+    deploy:
+      mode: global
+      labels:
+        - prometheus_scrape_target=node-exporter
+      restart_policy:
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  prometheus:
+    image: govpf/prometheus:2
+    networks:
+      - loki
+    environment:
+      - CLUSTER="local"
+    configs:
+      - source: prometheus_template
+        target: /etc/prometheus/prometheus.orig.yml
+    ports:
+      - 9090:9090
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=15d'
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      <<: *log-driver
+      options: *log-options
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  backend:
+    image: govpf/mystuff-api:master
+    networks:
+      - loki
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mystuff
+      - SPRING_DATASOURCE_USERNAME=mystuff
+      - SPRING_DATASOURCE_PASSWORD=mystuff
+    logging:
+      <<: *log-driver
+      options:
+        <<: *log-options
+        loki-pipeline-stages: |
+          - multiline:
+              firstline: '^\d{4}-\d{1,2}-\d{1,2}'
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  db:
+    image: govpf/postgres:11
+    networks:
+      - loki
+    environment:
+      - POSTGRES_DB=mystuff
+      - POSTGRES_USER=mystuff
+      - POSTGRES_PASSWORD=mystuff
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres:/var/lib/postgresql/data/pgdata
+    logging:
+      <<: *log-driver
+      options: *log-options
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  frontend:
+    image: govpf/mystuff-frontend:master
+    networks:
+      - loki
+    environment:
+      - REVERSE_API_BASE_URL=backend:8080
+    ports:
+      - 8002:80
+    logging:
+      <<: *log-driver
+      options: *log-options
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+volumes:
+  postgres:
+  grafana:
+
+networks:
+  loki:

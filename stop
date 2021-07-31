@@ -1,0 +1,25 @@
+#!/bin/sh -e
+
+usage() {
+    echo "$0 <stack>"
+}
+
+if [ -z "$1" ]
+then
+    usage
+    exit 1
+fi
+
+STACK="${1}"
+docker stack rm $STACK
+
+sleep 5
+until ! docker network inspect "${STACK}" &>/dev/null
+do
+    sleep 5
+done
+
+# Prune dangling container,network,volume but not images
+docker container prune --force
+docker network prune --force
+docker volume prune --force

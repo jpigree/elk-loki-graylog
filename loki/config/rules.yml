@@ -1,0 +1,16 @@
+groups:
+  - name: exceptions
+    rules:
+      - alert: HighPercentageError
+        expr: |
+          sum(rate({swarm_stack="loki"} |~ "ERROR"[1m])) by (swarm_service)
+          /
+          sum(rate({swarm_stack="loki"}[1m])) by (swarm_service)
+          > 0.025
+        for: 2m
+        labels:
+            severity: page
+            team: devops
+            category: logs
+        annotations:
+            summary: "High percentage of errors"

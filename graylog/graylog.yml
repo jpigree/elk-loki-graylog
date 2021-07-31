@@ -1,0 +1,177 @@
+version: '3.7'
+
+configs:
+  filebeat_config:
+    name: filebeat_config-${CONFIG_VERSION:-0}
+    file: config/filebeat.yml
+
+services:
+  # MongoDB: https://hub.docker.com/_/mongo/
+  mongo:
+    image: mongo:4.2
+    networks:
+      - graylog
+    volumes:
+      - mongo_data:/data/db
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  # Elasticsearch: https://www.elastic.co/guide/en/elasticsearch/reference/7.10/docker.html
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+    environment:
+      - http.host=0.0.0.0
+      - transport.host=localhost
+      - network.host=0.0.0.0
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    networks:
+      - graylog
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    deploy:
+      labels:
+        deploy.wait: "true"
+      resources:
+        limits:
+          memory: 1g
+
+  # Graylog: https://hub.docker.com/r/graylog/graylog/
+  graylog:
+    image: graylog/graylog:4.0
+    environment:
+      # CHANGE ME (must be at least 16 characters)!
+      - GRAYLOG_PASSWORD_SECRET=somepasswordpepper
+      # Password: admin
+      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://${EXTERNAL_IP}:9000/
+      # Config email
+      - GRAYLOG_TRANSPORT_EMAIL_ENABLED=true
+      - GRAYLOG_TRANSPORT_EMAIL_HOSTNAME=inbucket
+      - GRAYLOG_TRANSPORT_EMAIL_PORT=2500
+      - GRAYLOG_TRANSPORT_EMAIL_USE_AUTH=false
+      - GRAYLOG_TRANSPORT_EMAIL_USE_TLS=false
+      - GRAYLOG_TRANSPORT_EMAIL_USE_SSL=false
+    entrypoint: /usr/bin/tini -- wait-for-it elasticsearch:9200 --  /docker-entrypoint.sh
+    networks:
+      - graylog
+    ports:
+      # Graylog web interface and REST API
+      - 9000:9000
+      # Syslog TCP
+      - 1514:1514
+      # Syslog UDP
+      - 1514:1514/udp
+      # GELF TCP
+      - 12201:12201
+      # GELF UDP
+      - 12201:12201/udp
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+    healthcheck:
+         test: ["CMD", "curl", "-f", "http://localhost:9000/api"]
+         interval: 10s
+         timeout: 10s
+         retries: 10
+         start_period: 30s
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  inbucket:
+    image: inbucket/inbucket:stable
+    networks:
+      - graylog
+    environment:
+      - inbucket_mailboxnaming=full
+    ports:
+      - 2501:9000
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.10.2
+    hostname: "{{.Node.Hostname}}-filebeat"
+    user: root
+    networks:
+      - graylog
+    command: [ "run", "--strict.perms=false" ]
+    configs:
+      - source: filebeat_config
+        target: /usr/share/filebeat/filebeat.yml
+    volumes:
+      - filebeat:/usr/share/filebeat/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+      resources:
+        reservations:
+          cpus: '0.2'
+          memory: 128m
+        limits:
+          cpus: '0.2'
+          memory: 128m
+
+  backend:
+    image: govpf/mystuff-api:master
+    networks:
+      - graylog
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mystuff
+      - SPRING_DATASOURCE_USERNAME=mystuff
+      - SPRING_DATASOURCE_PASSWORD=mystuff
+    labels:
+      co.elastic.logs/multiline.type: pattern
+      co.elastic.logs/multiline.pattern: '^\d{4}-\d{1,2}-\d{1,2}'
+      co.elastic.logs/multiline.negate: "true"
+      co.elastic.logs/multiline.match: after
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  db:
+    image: govpf/postgres:11
+    networks:
+      - graylog
+    environment:
+      - POSTGRES_DB=mystuff
+      - POSTGRES_USER=mystuff
+      - POSTGRES_PASSWORD=mystuff
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres:/var/lib/postgresql/data/pgdata
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  frontend:
+    image: govpf/mystuff-frontend:master
+    networks:
+      - graylog
+    environment:
+      - REVERSE_API_BASE_URL=backend:8080
+    ports:
+      - 8001:80
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+volumes:
+  filebeat:
+  mongo_data:
+  postgres:
+  es_data:
+  graylog_data:
+
+networks:
+  graylog:

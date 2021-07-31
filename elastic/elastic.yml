@@ -1,0 +1,138 @@
+version: '3.7'
+
+configs:
+  filebeat_config:
+    name: filebeat_config-${CONFIG_VERSION:-0}
+    file: config/filebeat.yml
+  logstash_pipeline:
+    name: logstash_pipeline-${CONFIG_VERSION:-0}
+    file: config/logstash.conf
+
+services:
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.12.0
+    networks:
+      - elastic
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:5601/"]
+      retries: 6
+    labels:
+      co.elastic.logs/enabled: "false"
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    networks:
+      - elastic
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    environment:
+      node.name: es01
+      cluster.name: logs-es
+      discovery.type: single-node
+    healthcheck:
+      test: ["CMD", "curl","-s" ,"-f", "http://localhost:9200/_cat/health"]
+      start_period: 2m
+      interval: 30s
+      retries: 3
+    labels:
+      co.elastic.logs/module: elasticsearch
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.12.0
+    networks:
+      - elastic
+    configs:
+      - source: logstash_pipeline
+        target: /usr/share/logstash/pipeline/logstash.conf
+    labels:
+      co.elastic.logs/module: logstash
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.12.0
+    hostname: "{{.Node.Hostname}}-filebeat"
+    user: root
+    networks:
+      - elastic
+    command: [ "run", "--strict.perms=false" ]
+    configs:
+      - source: filebeat_config
+        target: /usr/share/filebeat/filebeat.yml
+    volumes:
+      - filebeat:/usr/share/filebeat/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  backend:
+    image: govpf/mystuff-api:master
+    networks:
+      - elastic
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mystuff
+      - SPRING_DATASOURCE_USERNAME=mystuff
+      - SPRING_DATASOURCE_PASSWORD=mystuff
+    labels:
+      co.elastic.logs/multiline.type: pattern
+      co.elastic.logs/multiline.pattern: '^\d{4}-\d{1,2}-\d{1,2}'
+      co.elastic.logs/multiline.negate: "true"
+      co.elastic.logs/multiline.match: after
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  db:
+    image: govpf/postgres:11
+    networks:
+      - elastic
+    environment:
+      - POSTGRES_DB=mystuff
+      - POSTGRES_USER=mystuff
+      - POSTGRES_PASSWORD=mystuff
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres:/var/lib/postgresql/data/pgdata
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+  frontend:
+    image: govpf/mystuff-frontend:master
+    networks:
+      - elastic
+    environment:
+      - REVERSE_API_BASE_URL=backend:8080
+    ports:
+      - 8000:80
+    deploy:
+      replicas: 1
+      labels:
+        deploy.wait: "true"
+
+volumes:
+  filebeat:
+  elasticsearch:
+  postgres:
+
+networks:
+  elastic:

@@ -1,0 +1,67 @@
+global:
+  scrape_interval:     1m
+  evaluation_interval: 1m
+
+  external_labels:
+    cluster: '${CLUSTER}'
+    cluster_type: 'swarm'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+        - localhost:9090
+    metric_relabel_configs:
+    - target_label: instance
+      replacement: '${CLUSTER}'
+      action: replace
+
+  - job_name: 'cadvisor'
+    scrape_interval: 15s
+    dockerswarm_sd_configs:
+      - host: unix:///var/run/docker.sock
+        role: tasks
+        port: 8080
+    relabel_configs:
+      - source_labels: [__meta_dockerswarm_task_desired_state]
+        regex: running
+        action: keep
+      - source_labels: [__meta_dockerswarm_service_label_prometheus_scrape_target]
+        regex: cadvisor
+        action: keep
+      - source_labels: [__meta_dockerswarm_node_id]
+        target_label: "node_id"
+      - source_labels: [__meta_dockerswarm_node_hostname]
+        target_label: "node_name"
+    metric_relabel_configs:
+    - source_labels: [__name__]
+      regex: '(container_fs_io_time_weighted_seconds_total|container_fs_inodes_free|container_fs_inodes_total|container_fs_io_current|container_fs_limit_bytes|container_fs_usage_bytes|container_fs_io_time_seconds_total|container_fs_read_seconds_total|container_fs_reads_merged_total|container_fs_sector_reads_total|container_fs_sector_writes_total|container_fs_write_seconds_total|container_fs_writes_merged_total|go_.*)'
+      action: drop
+    - source_labels: [id]
+      regex: '/system.slice/var-lib-docker-containers.*-shm.mount'
+      action: drop
+    - source_labels: [__meta_dockerswarm_service_name]
+      target_label: "swarm_service"
+      action: replace
+
+  - job_name: 'node-exporter'
+    scrape_interval: 15s
+    dockerswarm_sd_configs:
+      - host: unix:///var/run/docker.sock
+        role: tasks
+        port: 9100
+    relabel_configs:
+      - source_labels: [__meta_dockerswarm_task_desired_state]
+        regex: running
+        action: keep
+      - source_labels: [__meta_dockerswarm_service_label_prometheus_scrape_target]
+        regex: node-exporter
+        action: keep
+      - source_labels: [__meta_dockerswarm_node_id]
+        target_label: "node_id"
+      - source_labels: [__meta_dockerswarm_node_hostname]
+        target_label: "node_name"
+    metric_relabel_configs:
+    - source_labels: [__name__]
+      regex: '(node_cpu_guest_seconds_total|node_sockstat_.*|node_netstat_.*|node_filefd_maximum|node_network_.*|node_scrape_collector_duration_seconds|node_scrape_collector_success|go_.*)'
+      action: drop

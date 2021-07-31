@@ -1,0 +1,17 @@
+global:
+  smtp_require_tls: false
+  smtp_smarthost: 'inbucket:2500'
+  smtp_from: 'alertmanager@gov.pf'
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'severity', 'instance']
+  group_wait: 45s
+  group_interval: 10m
+  repeat_interval: 1h
+  receiver: 'default-catchall'
+
+receivers:
+- name: 'default-catchall'
+  email_configs:
+  - to: 'devs.mystuff@gov.pf'
