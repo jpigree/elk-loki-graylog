@@ -22,6 +22,9 @@ configs:
   swarm-stack_dashboard:
     name: grafana_swarm-stack_dashboard-${CONFIG_VERSION:-0}
     file: config/swarm-stack.json
+  swarm-logs_dashboard:
+    name: grafana_swarm-logs-${CONFIG_VERSION:-0}
+    file: config/swarm-logs.json
   prometheus_template:
     name: prometheus_template-${CONFIG_VERSION:-0}
     file: config/prometheus.orig.yml
@@ -62,6 +65,8 @@ services:
         target: /etc/grafana/provisioning/dashboards/dashboards.yml
       - source: swarm-stack_dashboard
         target: /var/lib/grafana/dashboards/swarm-stack.json
+      - source: swarm-logs_dashboard
+        target: /var/lib/grafana/dashboards/swarm-logs.json
     volumes:
       - grafana:/var/lib/grafana
     ports:
