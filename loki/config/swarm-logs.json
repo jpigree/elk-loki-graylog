@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1626382593226,
+  "iteration": 1628129472904,
   "links": [],
   "panels": [
     {
@@ -64,42 +64,11 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "swarm-prod",
-          "value": "swarm-prod"
+          "text": "loki",
+          "value": "loki"
         },
         "datasource": "Logs",
-        "definition": "label_values(cluster)",
-        "description": null,
-        "error": null,
-        "hide": 0,
-        "includeAll": false,
-        "label": "cluster",
-        "multi": false,
-        "name": "cluster",
-        "options": [],
-        "query": {
-          "query": "label_values(cluster)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {
-          "selected": false,
-          "text": "dgae-i-taiete",
-          "value": "dgae-i-taiete"
-        },
-        "datasource": "Logs",
-        "definition": "label_values({cluster=\"$cluster\"}, swarm_stack)",
+        "definition": "label_values(swarm_stack)",
         "description": null,
         "error": null,
         "hide": 0,
@@ -109,7 +78,7 @@
         "name": "stack",
         "options": [],
         "query": {
-          "query": "label_values({cluster=\"$cluster\"}, swarm_stack)",
+          "query": "label_values(swarm_stack)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -126,11 +95,11 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "dgae-i-taiete_api",
-          "value": "dgae-i-taiete_api"
+          "text": "loki_frontend",
+          "value": "loki_frontend"
         },
         "datasource": "Logs",
-        "definition": "label_values({cluster=\"$cluster\", swarm_stack=\"$stack\"}, swarm_service)",
+        "definition": "label_values({swarm_stack=\"$stack\"}, swarm_service)",
         "description": null,
         "error": null,
         "hide": 0,
@@ -140,7 +109,7 @@
         "name": "service",
         "options": [],
         "query": {
-          "query": "label_values({cluster=\"$cluster\", swarm_stack=\"$stack\"}, swarm_service)",
+          "query": "label_values({swarm_stack=\"$stack\"}, swarm_service)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -156,13 +125,12 @@
       {
         "allValue": null,
         "current": {
-          "isNone": true,
           "selected": false,
-          "text": "None",
-          "value": ""
+          "text": "loki_frontend.1.oceu8k4qhoyvpqru7sse2nx98",
+          "value": "loki_frontend.1.oceu8k4qhoyvpqru7sse2nx98"
         },
         "datasource": "Logs",
-        "definition": "label_values({cluster=\"$cluster\", swarm_stack=\"$stack\", swarm_service=\"$service\"}, container_name)",
+        "definition": "label_values({swarm_stack=\"$stack\", swarm_service=\"$service\"}, container_name)",
         "description": null,
         "error": null,
         "hide": 0,
@@ -172,7 +140,7 @@
         "name": "container",
         "options": [],
         "query": {
-          "query": "label_values({cluster=\"$cluster\", swarm_stack=\"$stack\", swarm_service=\"$service\"}, container_name)",
+          "query": "label_values({swarm_stack=\"$stack\", swarm_service=\"$service\"}, container_name)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -195,5 +163,5 @@
   "timezone": "browser",
   "title": "Swarm logs",
   "uid": "pQwttkmnk",
-  "version": 2
+  "version": 1
 }

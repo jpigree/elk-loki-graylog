@@ -17,8 +17,7 @@
   "editable": true,
   "gnetId": 7007,
   "graphTooltip": 1,
-  "id": 2,
-  "iteration": 1622082830891,
+  "iteration": 1628131368219,
   "links": [],
   "panels": [
     {
@@ -89,7 +88,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "(time() - min(container_start_time_seconds{cluster=~\"$cluster\", container_label_com_docker_stack_namespace=~\"$stack\"}))",
+          "expr": "(time() - min(container_start_time_seconds{container_label_com_docker_stack_namespace=~\"$stack\"}))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -166,7 +165,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", container_label_com_docker_stack_namespace=~\"$stack\"}[$interval])) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_stack_namespace=~\"$stack\"}[$interval])) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -285,7 +284,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "count(rate(container_last_seen{cluster=~\"$cluster\", container_label_com_docker_stack_namespace=~\"$stack\"}[$interval]))",
+          "expr": "count(rate(container_last_seen{container_label_com_docker_stack_namespace=~\"$stack\"}[$interval]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -402,7 +401,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(container_memory_working_set_bytes{cluster=~\"$cluster\", container_label_com_docker_stack_namespace=~\"$stack\"}) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
+          "expr": "sum(container_memory_working_set_bytes{container_label_com_docker_stack_namespace=~\"$stack\"}) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -511,7 +510,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(container_network_receive_bytes_total{cluster=~\"$cluster\", container_label_com_docker_stack_namespace=~\"$stack\"}[$interval])) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
+          "expr": "sum(rate(container_network_receive_bytes_total{container_label_com_docker_stack_namespace=~\"$stack\"}[$interval])) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -618,7 +617,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(container_network_transmit_bytes_total{cluster=~\"$cluster\", container_label_com_docker_stack_namespace=~\"$stack\"}[$interval])) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
+          "expr": "sum(rate(container_network_transmit_bytes_total{container_label_com_docker_stack_namespace=~\"$stack\"}[$interval])) by (container_label_com_docker_swarm_service_name, container_label_com_docker_swarm_task_id)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -680,44 +679,12 @@
       {
         "allValue": null,
         "current": {
-          "isNone": true,
-          "selected": false,
-          "text": "None",
-          "value": ""
-        },
-        "datasource": "Prometheus",
-        "definition": "label_values(container_cpu_load_average_10s, cluster)",
-        "description": null,
-        "error": null,
-        "hide": 0,
-        "includeAll": false,
-        "label": "cluster",
-        "multi": false,
-        "name": "cluster",
-        "options": [],
-        "query": {
-          "query": "label_values(container_cpu_load_average_10s, cluster)",
-          "refId": "Prometheus-cluster-Variable-Query"
-        },
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {
           "selected": false,
           "text": "loki",
           "value": "loki"
         },
         "datasource": "Prometheus",
-        "definition": "query_result(count(container_last_seen{cluster=~\"$cluster\", container_label_com_docker_stack_namespace =~\".+\"}) by (container_label_com_docker_stack_namespace))",
+        "definition": "query_result(count(container_last_seen{container_label_com_docker_stack_namespace =~\".+\"}) by (container_label_com_docker_stack_namespace))",
         "description": null,
         "error": null,
         "hide": 0,
@@ -727,8 +694,8 @@
         "name": "stack",
         "options": [],
         "query": {
-          "query": "query_result(count(container_last_seen{cluster=~\"$cluster\", container_label_com_docker_stack_namespace =~\".+\"}) by (container_label_com_docker_stack_namespace))",
-          "refId": "Prometheus-stack-Variable-Query"
+          "query": "query_result(count(container_last_seen{container_label_com_docker_stack_namespace =~\".+\"}) by (container_label_com_docker_stack_namespace))",
+          "refId": "StandardVariableQuery"
         },
         "refresh": 1,
         "regex": "/container_label_com_docker_stack_namespace=\"(.*)\"/",
@@ -875,5 +842,5 @@
   "timezone": "browser",
   "title": "Swarm / Compute Resources / Stack",
   "uid": "9tBHVwu7xwwNQ6c4",
-  "version": 1
+  "version": 2
 }
