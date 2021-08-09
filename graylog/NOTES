@@ -1,4 +1,6 @@
 --------------
 endpoints:
 graylog: http://127.0.0.1:9000
+login: admin
+mot de passe: admin
 mystuff: http://127.0.0.1:8001
